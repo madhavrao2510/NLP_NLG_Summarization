@@ -3,9 +3,12 @@
     to Train the network and eventually use the trained weights for predictions during the inference
 '''
 
-import tensorflow as tf
-from tensorflow.contrib.tensorboard.plugins import projector
-from Tensorflow_Graph.utils import *
+import tensorflow.compat.v1 as tf
+
+tf.disable_v2_behavior()
+
+from tensorboard.plugins import projector
+from Summary_Generator.Tensorflow_Graph.utils import *
 import os
 import numpy as np
 
@@ -20,11 +23,11 @@ class Model:
         # setup the optimizer with the graph
         with self.graph.as_default():
             # define the optimizer for this task:
-        	with tf.variable_scope("Trainer"):
+        	with tf.compat.v1.variable_scope("Trainer"):
         	    # define the train_step for this:
         	    self.train_step = self.optimizer.minimize(self.loss)
 
-        	with tf.variable_scope("Init"):
+        	with tf.compat.v1.variable_scope("Init"):
         		self.init = tf.global_variables_initializer()
 
     def __setup_graph(self):
@@ -139,7 +142,7 @@ class Model:
                 X, Y = synch_random_shuffle_non_np(zip(X[0], X[1]), Y)
 
                 # unzip the shuffled X:
-                X = zip(*X)
+                X = list(zip(*X))
 
                 # setup the data for training:
                 # obtain the padded training data:
@@ -166,6 +169,15 @@ class Model:
 
 
                     # execute the cost and the train_step
+                    print(self.train_step)
+                    print(self.loss)
+                    print({
+                        self.inp_field_encodings: inp_field,
+                        self.inp_content_encodings: inp_conte,
+                        self.inp_label_encodings: inp_label,
+                        self.inp_sequence_lengths: inp_lengths,
+                        self.lab_sequence_lengths: lab_lengths
+                    })
                     _, cost = sess.run([self.train_step, self.loss], feed_dict = {
                         self.inp_field_encodings: inp_field,
                         self.inp_content_encodings: inp_conte,
@@ -173,10 +185,10 @@ class Model:
                         self.inp_sequence_lengths: inp_lengths,
                         self.lab_sequence_lengths: lab_lengths
                     })
-                    print "Range: ", "[", start, "-", (start + len(inp_field)), "]", " Cost: ", cost
+                    print("Range: ", "[", start, "-", (start + len(inp_field)), "]", " Cost: ", cost)
                     global_step += 1
-
-            	if((epoch + 1) % checkpoint_factor == 0 or epoch == 0):
+		#print("")	
+                if((epoch + 1) % checkpoint_factor == 0 or epoch == 0):
                     # generate the summary for this batch:
                     sums, predicts = sess.run([self.all_summaries, self.outputs], feed_dict = {
                         self.inp_field_encodings: inp_field,

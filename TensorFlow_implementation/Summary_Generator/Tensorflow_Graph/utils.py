@@ -16,7 +16,7 @@ def get_lengths(sequences):
         @return
         lengths = [1d] list containing the lengths of the sequences
     '''
-    return map(lambda x: len(x), sequences)
+    return list(map(lambda x: len(x), sequences))
 
 
 def pad_sequences(seqs, pad_value = 0):
@@ -30,7 +30,7 @@ def pad_sequences(seqs, pad_value = 0):
     '''
 
     # find the maximum length among the given sequences
-    max_length = max(map(lambda x: len(x), seqs))
+    max_length = max(list(map(lambda x: len(x), seqs)))
 
     # create a list denoting the values with which the sequences need to be padded:
     padded_seqs = [] # initialize to empty list
@@ -60,7 +60,7 @@ def synch_random_shuffle_non_np(X, Y):
     np.random.shuffle(combinedNew)
 
     # extract the data back from the combined list
-    X[:], Y[:] = zip(*combinedNew)
+    X, Y = zip(*combinedNew)
 
     # return the shuffled data:
     return X, Y

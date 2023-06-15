@@ -5,7 +5,9 @@
     things easy.
 '''
 
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+
+tf.disable_v2_behavior()
 
 # define the graph builder function:
 def get_computation_graph(seed_value, field_vocab_size, content_label_vocab_size, field_embedding_size,
@@ -29,7 +31,7 @@ def get_computation_graph(seed_value, field_vocab_size, content_label_vocab_size
 
         print("\nstep 1: Creating input placeholders for the computations ...")
         # Placeholders for the input data:
-        with tf.variable_scope("Input_Data"):
+        with tf.compat.v1.variable_scope("Input_Data"):
             tf_field_encodings = tf.placeholder(tf.int32, shape=(None, None), name="input_field_encodings")
             tf_content_encodings = tf.placeholder(tf.int32, shape=(None, None), name="input_content_encodings")
             tf_label_encodings = tf.placeholder(tf.int32, shape=(None, None), name="input_label_encodings")
@@ -42,7 +44,7 @@ def get_computation_graph(seed_value, field_vocab_size, content_label_vocab_size
 
 
         # create the one-hot encoded values for the label_encodings
-        with tf.variable_scope("One_hot_encoder"):
+        with tf.compat.v1.variable_scope("One_hot_encoder"):
             tf_one_hot_label_encodings = tf.one_hot(tf_label_encodings, depth=content_label_vocab_size)
 
         # print all placeholders for the encodings generated in step 1
@@ -59,14 +61,14 @@ def get_computation_graph(seed_value, field_vocab_size, content_label_vocab_size
 
         print("\nstep 2: Creating Embeddings Mechanism for the input and the output words ...")
         # Scope for the shared Content_Label matrix
-        with tf.variable_scope("Unified_Vocabulary_Matrix"):
+        with tf.compat.v1.variable_scope("Unified_Vocabulary_Matrix"):
             content_label_embedding_matrix = tf.get_variable("content_label_embedding_matrix",
                                         shape=(content_label_vocab_size, content_label_embedding_size),
                                         initializer=tf.random_uniform_initializer(minval=-1, maxval=1, seed=seed_value),
                                         dtype=tf.float32)
 
         # Embeddings for the given input data:
-        with tf.variable_scope("Input_Embedder"):
+        with tf.compat.v1.variable_scope("Input_Embedder"):
             # Embed the field encodings:
             field_embedding_matrix = tf.get_variable("field_embedding_matrix",
                                         shape=(field_vocab_size, field_embedding_size),
@@ -83,7 +85,7 @@ def get_computation_graph(seed_value, field_vocab_size, content_label_vocab_size
         print("\tEmbedded_Input_Tensors: ", tf_field_embedded, tf_content_embedded)
 
         # Embeddings for the label (summary sentences):
-        with tf.variable_scope("Label_Embedder"):
+        with  tf.compat.v1.variable_scope("Label_Embedder"):
             # embed the label encodings
             tf_label_embedded = tf.nn.embedding_lookup(content_label_embedding_matrix,
                                                          tf_label_encodings, name="label_embedder")
@@ -91,7 +93,7 @@ def get_computation_graph(seed_value, field_vocab_size, content_label_vocab_size
         print("\tEmbedded_Label_Tensors: ", tf_label_embedded)
 
         # Concatenate the Input embeddings channel_wise and obtain the combined input tensor
-        with tf.variable_scope("Input_Concatenator"):
+        with tf.compat.v1.variable_scope("Input_Concatenator"):
             tf_field_content_embedded = tf.concat([tf_field_embedded, tf_content_embedded], axis=-1, name="concatenator")
 
         print("\tFinal_Input_to_the_Encoder: ", tf_field_content_embedded)
@@ -102,7 +104,7 @@ def get_computation_graph(seed_value, field_vocab_size, content_label_vocab_size
         # ========================================================================
 
         print("\nstep 3: Creating the encoder RNN to obtain the encoded input sequences. (The Encoder Module) ... ")
-        with tf.variable_scope("Encoder"):
+        with tf.compat.v1.variable_scope("Encoder"):
             encoded_input, encoder_final_state = tf.nn.dynamic_rnn (
                                     cell = tf.nn.rnn_cell.LSTMCell(lstm_cell_state_size), # let all parameters to be default
                                     inputs = tf_field_content_embedded,
@@ -125,7 +127,7 @@ def get_computation_graph(seed_value, field_vocab_size, content_label_vocab_size
 
 
         print("**step 4.1: defining the content based attention")
-        with tf.variable_scope("Content_Based_Attention/trainable_weights"):
+        with tf.compat.v1.variable_scope("Content_Based_Attention/trainable_weights"):
             '''
                 These weights and bias matrices must be compatible with the dimensions of the h_values and the f_values
                 passed to the function below. If they are not, some exception might get thrown and it would be difficult
@@ -151,7 +153,7 @@ def get_computation_graph(seed_value, field_vocab_size, content_label_vocab_size
             b_c_summary = tf.summary.histogram("Content_based_attention/content_biases", b_c)
 
 
-        with tf.variable_scope("Content_Based_Attention"):
+        with tf.compat.v1.variable_scope("Content_Based_Attention"):
             def get_content_based_attention_vectors(query_vectors):
                 '''
                     function that returns the alpha_content vector using the yt-1 (query vectors)
@@ -179,7 +181,7 @@ def get_computation_graph(seed_value, field_vocab_size, content_label_vocab_size
 
 
         print("**step 4.2: defining the link based attention")
-        with tf.variable_scope("Link_Based_Attention/trainable_weights"):
+        with tf.compat.v1.variable_scope("Link_Based_Attention/trainable_weights"):
             '''
                 The dimensions of the Link_Matrix must be properly compatible with the field_vocab_size.
                 If they are not, some exception might get thrown and it would be difficult
@@ -194,7 +196,7 @@ def get_computation_graph(seed_value, field_vocab_size, content_label_vocab_size
 
 
         # define the function for obtaining the link based attention values.
-        with tf.variable_scope("Link_Based_Attention"):
+        with tf.compat.v1.variable_scope("Link_Based_Attention"):
             def get_link_based_attention_vectors(prev_attention_vectors):
                 '''
                     This function generates the link based attention vectors using the Link matrix and the
@@ -213,7 +215,7 @@ def get_computation_graph(seed_value, field_vocab_size, content_label_vocab_size
 
         print("**step 4.3: defining the hybrid attention")
         # define the hybrid of the content based and the link based attention
-        with tf.variable_scope("Hybrid_attention/trainable_weights"):
+        with tf.compat.v1.variable_scope("Hybrid_attention/trainable_weights"):
             # for now, this is just the content_based attention:
             Zt_weights = tf.get_variable("zt_gate_parameter_vector", dtype=tf.float32,
                                          initializer=tf.random_uniform_initializer(minval=-1, maxval=1, seed=seed_value),
@@ -222,7 +224,7 @@ def get_computation_graph(seed_value, field_vocab_size, content_label_vocab_size
             Zt_weights_summary = tf.summary.histogram("Hybrid_attention/zt_weights", Zt_weights)
 
 
-        with tf.variable_scope("Hybrid_attention"):
+        with tf.compat.v1.variable_scope("Hybrid_attention"):
             # define the hybrid_attention_calculator function:
             def get_hybrid_attention(h_values, y_values, content_attention, link_attention):
                 '''
@@ -253,7 +255,7 @@ def get_computation_graph(seed_value, field_vocab_size, content_label_vocab_size
 
         print("\nstep 5: creating the decoder RNN to obtain the generated summary for the structured data (The Decoder Module) ...")
 
-        with tf.variable_scope("Decoder/trainable_weights"):
+        with tf.compat.v1.variable_scope("Decoder/trainable_weights"):
                # define the weights for the output projection calculation
                W_output = tf.get_variable(
                                    "output_projector_matrix", dtype=tf.float32,
@@ -303,7 +305,7 @@ def get_computation_graph(seed_value, field_vocab_size, content_label_vocab_size
                        "inference" => decode_lengths is be ignored and unrolling will be done till <eos> is received
 
             '''
-            with tf.variable_scope("Decoder", reuse = w_reuse):
+            with tf.compat.v1.variable_scope("Decoder", reuse = w_reuse):
                 # define the function to obtain the predictions out of the given hidden_state_values
                 def get_predictions(h_t_values):
                     '''
@@ -514,7 +516,7 @@ def get_computation_graph(seed_value, field_vocab_size, content_label_vocab_size
         print("\nstep 7: defining the cost function for optimization ...")
 
         # define the loss (objective) function for minimization
-        with tf.variable_scope("Loss"):
+        with tf.compat.v1.variable_scope("Loss"):
             loss = tf.reduce_mean(
                 tf.nn.softmax_cross_entropy_with_logits(logits=outputs, labels=tf_one_hot_label_encodings))
 
@@ -529,7 +531,7 @@ def get_computation_graph(seed_value, field_vocab_size, content_label_vocab_size
         print("\nstep 8: defining the computations for the inference mode ...")
 
         # define the computations for the inference mode
-        with tf.variable_scope("inference_computations"):
+        with tf.compat.v1.variable_scope("inference_computations"):
             inf_outputs = decode(tf_label_embedded[:, 0, :])
 
         print("\tInference outputs: ", inf_outputs)
@@ -541,7 +543,7 @@ def get_computation_graph(seed_value, field_vocab_size, content_label_vocab_size
 
         print("\nstep _ : setting up the errands for TensorFlow ...")
 
-        with tf.variable_scope("Errands"):
+        with tf.compat.v1.variable_scope("Errands"):
             all_summaries = tf.summary.merge_all()
 
     print("=============================================================================================================\n\n")
